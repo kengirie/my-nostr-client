@@ -1,101 +1,122 @@
-import Image from "next/image";
+"use client"
+
+import { getPublicKey } from 'nostr-tools/pure'
+import { useEffect, useState } from 'react'
+import { nip19 } from "nostr-tools"
+import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+
+
+// export async function generateMetadata(): Promise<Metadata> {
+//   return {
+//     title: 'Index page',
+//   };
+// }
+
+// const defaultProps = {
+//   title: "Static page",
+//   msg:"This is static page smaple."
+
+// }
+
+import { Relay } from 'nostr-tools/relay'
+const skHex = 'nsec1l365d5pyh4c9ysqzlaah0epx0kxl4gy78ssaxxs28ymxdhcpkgvqyvncl9'
+const secretKey = nip19.decode(skHex).data
+// const encodeSk = nip19.nsecEncode(secretKey)
+const publicKey = getPublicKey(secretKey)
+
+ async function getRelay() {
+  const relay = await Relay.connect('wss://nos.lol')
+  console.log(`connected to ${relay.url}`)
+  return relay;
+}
+
+
+// const event = finalizeEvent({
+//         kind: 1,
+//         created_at: Math.floor(Date.now() / 1000),
+//         tags: [],
+//         content: 'I tried to use nostr-tools',
+//       }, secretKey)
+
+// const isGood = verifyEvent(event)
+// console.log('isGood', isGood)
+
+// let's query for an event that exists
+
+// const eventTemplate = {
+//   kind: 1,
+//   created_at: Math.floor(Date.now() / 1000),
+//   tags: [],
+//   content: 'I tried to use nostr-tools',
+// }
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [input, setInput] = useState("")
+  const [message, setMessage] = useState("")
+  const [relay, setRelay] = useState<Relay | null>(null)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  const doChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(event.target.value)
+  }
+  const doClick = async () => {
+    if (relay) {
+      const eventTemplate = {
+        kind: 1,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+        content: input,
+      }
+      const signedEvent = finalizeEvent(eventTemplate, secretKey)
+      const isGood = verifyEvent(signedEvent)
+      console.log('isGood', isGood)
+      await relay.publish(signedEvent)
+      setMessage("Hello, " + input + "!")
+      setInput("")
+    } else {
+      console.error("Relay is not connected")
+    }
+  }
+  const [events, setEvents] = useState<string[]>([])
+
+  useEffect(() => {
+    const initializeRelay = async () => {
+      const relayInstance = await getRelay()
+      setRelay(relayInstance)
+      relayInstance.subscribe([
+        {
+          kinds: [1],
+          authors: [publicKey],
+        },
+      ], {
+        onevent(event) {
+          console.log('got event:', event.content)
+          setEvents(prevEvents => [...prevEvents, event.content])
+        }
+      })
+
+      // const signedEvent = event ? finalizeEvent(event, secretKey) : null
+      // console.log('signedEvent', signedEvent)
+      //await relay.publish(signedEvent)
+      //relay.close()
+    }
+    initializeRelay()
+
+  }, [])
+
+
+  return (
+     <main>
+      <h1 className="title">My Page</h1>
+      <p className="text-lg m-5">{message}</p>
+      <div className="m-5 flex justify-center">
+        <input type="text" value={input} onChange={doChange} className="p-1 border-solid border-2 border-gray-400"/>
+        <button onClick={doClick} className="px-7 py-2 mx-2 bg-blue-800 text-white rounded-lg">Publish</button>
+      </div>
+      <ul>
+        {events.map((eventContent, index) => (
+          <li key={index}>{eventContent}</li>
+        ))}
+      </ul>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
   );
 }
