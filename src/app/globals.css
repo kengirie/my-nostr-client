@@ -57,8 +57,15 @@ img {
 h1.title {
   @apply text-2xl font-bold m-0 p-5 text-white bg-blue-800 text-center;
 }
-p.msg{
-  @apply text-lg m-5 text-gray-900;
+
+.message {
+  font-size: 18px;
+  padding: 10px;
+  background-color: #e0f7fa;
+  border: 1px solid #b2ebf2;
+  border-radius: 8px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
 }
 ul, ol {
   @apply text-xl m-5 font-bold;

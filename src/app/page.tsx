@@ -70,7 +70,7 @@ export default function Home() {
       const isGood = verifyEvent(signedEvent)
       console.log('isGood', isGood)
       await relay.publish(signedEvent)
-      setMessage("Hello, " + input + "!")
+      setMessage(input + " published")
       setInput("")
     } else {
       console.error("Relay is not connected")
@@ -107,11 +107,11 @@ export default function Home() {
   return (
      <main>
       <h1 className="title">My Page</h1>
-      <p className="text-lg m-5">{message}</p>
       <div className="m-5 flex justify-center">
         <input type="text" value={input} onChange={doChange} className="p-1 border-solid border-2 border-gray-400"/>
         <button onClick={doClick} className="px-7 py-2 mx-2 bg-blue-800 text-white rounded-lg">Publish</button>
       </div>
+      <p className="message">{message}</p>
       <ul>
         {events.map((eventContent, index) => (
           <li key={index}>{eventContent}</li>
